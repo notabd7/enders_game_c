@@ -79,33 +79,12 @@
             border: 2px solid #fff;
             margin: auto;
         }
-        .thumbs-up {
-            margin: 20px 0;
-            font-size: 1.5rem;
-            color: #fff;
-        }
-        .thumbs-button {
-            background: none;
-            border: none;
-            font-size: 2rem;
-            cursor: pointer;
-            padding: 10px;
-            transition: transform 0.2s;
-            color: #fff;
-        }
-        .thumbs-button:hover {
-            transform: scale(1.1);
-        }
     </style>
 </head>
 <body>
     <div id="menu">
         <h1>ENDER'S GAME</h1>
         <div class="spacebar">PRESS S TO START</div>
-        <div class="thumbs-up">
-            <button onclick="handleThumbsUp()" class="thumbs-button">👍</button>
-            <span id="thumbs-count">0</span> likes
-        </div>
         <div class="controls">
             <div class="key">
                 <div class="key-icon">W</div>
@@ -115,6 +94,7 @@
                 <div class="key-icon">A</div>
                 <div>ROTATE LEFT</div>
             </div>
+            
             <div class="key spacebar-key">
                 <div class="key-icon">SPACEBAR</div>
                 <div>SHOOT</div>
@@ -203,28 +183,6 @@
                 console.error("Error returning to menu:", error);
             }
         }
-
-        async function handleThumbsUp() {
-            try {
-                const response = await fetch('/api/thumbsup', {
-                    method: 'POST'
-                });
-                const data = await response.json();
-                document.getElementById('thumbs-count').textContent = data.count;
-            } catch (error) {
-                console.error('Error updating thumbs up:', error);
-            }
-        }
-
-        async function loadThumbsCount() {
-            try {
-                const response = await fetch('/api/thumbsup');
-                const data = await response.json();
-                document.getElementById('thumbs-count').textContent = data.count;
-            } catch (error) {
-                console.error('Error loading thumbs count:', error);
-            }
-        }
     
         document.addEventListener('keydown', (e) => {
             if (!gameInstance && e.code === 'KeyS') {
@@ -237,13 +195,10 @@
         Module.canvas.addEventListener('click', () => {
             Module.canvas.focus();
         });
-
-        // Load initial thumbs up count
-        loadThumbsCount();
     </script>
      <script>
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-     </script>
-     <script defer src="/_vercel/insights/script.js"></script>
+      </script>
+      <script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
