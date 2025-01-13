@@ -6,10 +6,9 @@
     <title>Ender's Game</title>
     <style>
         @font-face {
-            font-family: 'Arcade';
-            src: url('https://fonts.cdnfonts.com/s/6643/ARCADECLASSIC.woff') format('woff');
+            font-family: 'KarmaticArcade';
+            src: url('fonts/KarmaticArcade-6Yrp1.ttf') format('truetype');
         }
-
         body {
             margin: 0;
             padding: 0;
@@ -19,114 +18,183 @@
             justify-content: space-between;
             align-items: center;
             background-color: #000;
-            color: #0f0;
-            font-family: 'Arcade', sans-serif;
+            color: #fff;
+            font-family: 'KarmaticArcade', sans-serif;
             overflow: hidden;
         }
-
+        #menu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            height: 100vh;
+            width: 100%;
+        }
         h1 {
             font-size: 4rem;
             margin-top: 2rem;
-            text-shadow: 0 0 10px #0f0;
+            animation: pulse 2s infinite;
         }
-
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
         .spacebar {
             font-size: 2rem;
             margin-top: 2rem;
             animation: blink 1s infinite;
         }
-
         @keyframes blink {
             0%, 100% { opacity: 1; }
             50% { opacity: 0; }
         }
-
         .controls {
             display: flex;
             justify-content: center;
             gap: 1rem;
             margin-bottom: 2rem;
         }
-
         .key {
             display: flex;
             flex-direction: column;
             align-items: center;
-            background-color: #222;
-            border: 2px solid #0f0;
+            background-color: #fff;
+            color: #000;
+            border: 2px solid #fff;
             border-radius: 8px;
             padding: 0.5rem;
             width: 80px;
             height: 80px;
             font-size: 0.8rem;
         }
-
         .key-icon {
             font-size: 2rem;
             margin-bottom: 0.5rem;
         }
-
         .spacebar-key {
             width: 200px;
+        }
+        #game-canvas {
+            display: none;
+            border: 2px solid #fff;
+            margin: auto;
         }
     </style>
 </head>
 <body>
-    <h1>ENDER'S GAME</h1>
-    <div class="spacebar">PRESS SPACEBAR TO START</div>
-    <div class="controls">
-        <div class="key">
-            <div class="key-icon">W</div>
-            <div>THRUST</div>
-        </div>
-        <div class="key">
-            <div class="key-icon">A</div>
-            <div>ROTATE LEFT</div>
-        </div>
-        <div class="key">
-            <div class="key-icon">D</div>
-            <div>ROTATE RIGHT</div>
-        </div>
-        <div class="key spacebar-key">
-            <div class="key-icon">SPACEBAR</div>
-            <div>SHOOT</div>
-        </div>
-        <div class="key">
-            <div class="key-icon">ESC</div>
-            <div>RETURN HOME</div>
+    <div id="menu">
+        <h1>ENDER'S GAME</h1>
+        <div class="spacebar">PRESS S TO START</div>
+        <div class="controls">
+            <div class="key">
+                <div class="key-icon">W</div>
+                <div>THRUST</div>
+            </div>
+            <div class="key">
+                <div class="key-icon">A</div>
+                <div>ROTATE LEFT</div>
+            </div>
+            
+            <div class="key spacebar-key">
+                <div class="key-icon">SPACEBAR</div>
+                <div>SHOOT</div>
+            </div>
+            <div class="key">
+                <div class="key-icon">D</div>
+                <div>ROTATE RIGHT</div>
+            </div>
+            <div class="key">
+                <div class="key-icon">ESC</div>
+                <div>RETURN HOME</div>
+            </div>
         </div>
     </div>
-    <canvas id="game-canvas"></canvas>
-    <script>
-        let gameInstance = null;
+    
+    <canvas id="game-canvas" width="800" height="800"></canvas>
 
-        document.getElementById('start-button').addEventListener('click', startGame);
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && !gameInstance) {
-                startGame();
+    <script>
+        var Module = {
+            preRun: [],
+            postRun: [],
+            print: function(text) { console.log(text); },
+            printErr: function(text) { console.error(text); },
+            canvas: (function() {
+                var canvas = document.getElementById('game-canvas');
+                canvas.addEventListener("webglcontextlost", function(e) { 
+                    e.preventDefault(); 
+                }, false);
+                return canvas;
+            })(),
+            totalDependencies: 0,
+            monitorRunDependencies: function(left) {
+                this.totalDependencies = Math.max(this.totalDependencies, left);
+                console.log('Monitor run dependencies: ' + left);
             }
-            if (e.code === 'Escape' && gameInstance) {
+        };
+    
+        let gameInstance = null;
+    
+        async function startGame() {
+            try {
+                console.log("Starting game...");
+                document.getElementById('menu').style.display = 'none';
+                const canvas = document.getElementById('game-canvas');
+                canvas.style.display = 'block';
+                canvas.focus();
+                
+                if (!gameInstance) {
+                    if (typeof Module.ccall !== 'function') {
+                        await new Promise((resolve, reject) => {
+                            var script = document.createElement('script');
+                            script.src = "game.js";
+                            script.onload = () => {
+                                const checkModule = setInterval(() => {
+                                    if (Module.calledRun) {
+                                        clearInterval(checkModule);
+                                        resolve();
+                                    }
+                                }, 100);
+                            };
+                            script.onerror = reject;
+                            document.body.appendChild(script);
+                        });
+                    }
+                    
+                    console.log("Calling startGame...");
+                    Module.ccall('startGame', null, [], []);
+                    gameInstance = true;
+                    console.log("Game started successfully");
+                }
+            } catch (error) {
+                console.error("Error starting game:", error);
+            }
+        }
+    
+        function returnToMenu() {
+            try {
+                if (gameInstance) {
+                    console.log("Stopping game...");
+                    Module.ccall('stopGame', null, [], []);
+                    gameInstance = null;
+                }
+                document.getElementById('game-canvas').style.display = 'none';
+                document.getElementById('menu').style.display = 'flex';
+            } catch (error) {
+                console.error("Error returning to menu:", error);
+            }
+        }
+    
+        document.addEventListener('keydown', (e) => {
+            if (!gameInstance && e.code === 'KeyS') {
+                startGame();
+            } else if (gameInstance && e.code === 'Escape') {
                 returnToMenu();
             }
         });
-
-        function startGame() {
-            document.getElementById('menu').style.display = 'none';
-            document.getElementById('game-canvas').style.display = 'block';
-            
-            // Load and start the game
-            if (!gameInstance) {
-                const script = document.createElement('script');
-                script.src = 'game.js';
-                document.body.appendChild(script);
-            }
-        }
-
-        function returnToMenu() {
-            document.getElementById('game-canvas').style.display = 'none';
-            document.getElementById('menu').style.display = 'block';
-        }
+    
+        Module.canvas.addEventListener('click', () => {
+            Module.canvas.focus();
+        });
     </script>
-</body>
 </body>
 </html>

@@ -5,141 +5,24 @@
 #include <raymath.h>
 #include <time.h>
 #include <string.h>
+#include "game.h"
+
+#include <emscripten.h>
 
 #ifdef __EMSCRIPTEN__
-#include <emscripten.h>
+#define GAME_EXPORT EMSCRIPTEN_KEEPALIVE
+#else
+#define GAME_EXPORT
 #endif
-
-
 #define THICKNESS 1.5f
 #define SCALE 30.0f
 #define PI 3.14159265358979323846f
 
 
-// Basic structure for 2D vector - though we'll mostly use raylib's Vector2
-typedef struct {
-    float x;
-    float y;
-} Vec2;
-
-// Ship structure
-typedef struct {
-    Vector2 position;
-    Vector2 velocity;
-    float rotation;
-    float deathTime;
-} Ship;
-
-// Alien size enumeration
-typedef enum {
-    ALIEN_BIG,
-    ALIEN_SMALL
-} AlienSize;
-
-// Asteroid size enumeration
-typedef enum {
-    ASTEROID_BIG,
-    ASTEROID_MEDIUM,
-    ASTEROID_SMALL
-} AsteroidSize;
-
-
-// Asteroid structure
-typedef struct {
-    Vector2 position;
-    Vector2 velocity;
-    AsteroidSize size;
-    unsigned long long seed;
-    bool remove;
-} Asteroid;
-
-// Particle types
-typedef enum {
-    PARTICLE_LINE,
-    PARTICLE_DOT
-} ParticleType;
-
-// Particle structure with union for different types
-typedef struct {
-    Vector2 position;
-    Vector2 velocity;
-    float ttl;
-    ParticleType type;
-    union {
-        struct {
-            float rotation;
-            float length;
-        } line;
-        struct {
-            float radius;
-        } dot;
-    } values;
-} Particle;
-
-// Projectile structure
-typedef struct {
-    Vector2 position;
-    Vector2 velocity;
-    float ttl;
-    float spawn;
-    bool remove;
-} Projectile;
-
-// Alien structure
-typedef struct {
-    Vector2 position;
-    Vector2 direction;
-    AlienSize size;
-    bool remove;
-    float lastShot;
-    float lastDirection;
-} Alien;
-
-// Sound structure
-typedef struct {
-    Sound bloopLo;
-    Sound bloopHi;
-    Sound shoot;
-    Sound thrust;
-    Sound asteroid;
-    Sound boom;
-} GameSound;
-
-// Game state structure
-typedef struct {
-    Ship ship;
-    float change;
-    float current;
-    float stageStart;
-    // Dynamic arrays will be implemented later
-    Asteroid* asteroids;
-    size_t asteroids_count;
-    size_t asteroids_capacity;
-    Asteroid* asteroids_queue;
-    size_t asteroids_queue_count;
-    size_t asteroids_queue_capacity;
-    Particle* particles;
-    size_t particles_count;
-    size_t particles_capacity;
-    Projectile* projectiles;
-    size_t projectiles_count;
-    size_t projectiles_capacity;
-    Alien* aliens;
-    size_t aliens_count;
-    size_t aliens_capacity;
-    size_t lives;
-    size_t lastScore;
-    size_t score;
-    bool reset;
-    size_t lastBloop;
-    size_t bloop;
-    size_t frame;
-} GameState;
-
-// Global variables
+// Global state variables
 static GameState state;
 static GameSound sound;
-static Vector2 WINDOW_SIZE = {800, 800};
+static Vector2 window_size = {800, 800};
 
 
 // Functions to get alien properties based on size
@@ -662,7 +545,7 @@ static bool resetStage(void) {
 
     // Reset ship position and state
     state.ship.deathTime = 0;
-    state.ship.position = (Vector2){WINDOW_SIZE.x / 2, WINDOW_SIZE.y / 2};
+    state.ship.position = (Vector2){window_size.x / 2, window_size.y / 2};
     state.ship.velocity = (Vector2){0, 0};
     state.ship.rotation = 0;
 
@@ -682,8 +565,8 @@ static bool resetAsteroids(void) {
         
         Asteroid asteroid = {
             .position = {
-                ((float)rand() / RAND_MAX) * WINDOW_SIZE.x,
-                ((float)rand() / RAND_MAX) * WINDOW_SIZE.y
+                ((float)rand() / RAND_MAX) * window_size.x,
+                ((float)rand() / RAND_MAX) * window_size.y
             },
             .velocity = {
                 cosf(angle) * getAsteroidVelocityScale(size) * 1.5f * ((float)rand() / RAND_MAX),
@@ -741,7 +624,7 @@ static void renderGame(void) {
     }
     
     // Draw score
-    drawNumber(state.score, (Vector2){WINDOW_SIZE.x - SCALE, SCALE});
+    drawNumber(state.score, (Vector2){window_size.x - SCALE, SCALE});
     
     // Draw ship
     drawShip(&state.ship);
@@ -777,8 +660,8 @@ static void updateShipPosition(Ship* ship) {
     ship->position = Vector2Add(ship->position, ship->velocity);
     
     // Wrap around screen edges
-    ship->position.x = fmodf(ship->position.x + WINDOW_SIZE.x, WINDOW_SIZE.x);
-    ship->position.y = fmodf(ship->position.y + WINDOW_SIZE.y, WINDOW_SIZE.y);
+    ship->position.x = fmodf(ship->position.x + window_size.x, window_size.x);
+    ship->position.y = fmodf(ship->position.y + window_size.y, window_size.y);
 }
 
 // Handle ship controls and movement
@@ -899,8 +782,8 @@ static bool createExplosionParticles(GameState* state, Vector2 position, float s
 // Generic function to wrap position around screen
 static Vector2 wrapPosition(Vector2 pos) {
     return (Vector2){
-        fmodf(pos.x + WINDOW_SIZE.x, WINDOW_SIZE.x),
-        fmodf(pos.y + WINDOW_SIZE.y, WINDOW_SIZE.y)
+        fmodf(pos.x + window_size.x, window_size.x),
+        fmodf(pos.y + window_size.y, window_size.y)
     };
 }
 
@@ -1079,75 +962,60 @@ static void updateScore(GameState* state) {
     }
 }
 
-// bool initGame(void) {
-//     // Initialize window with web-specific settings
-//     #ifdef __EMSCRIPTEN__
-//     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-//     InitWindow(WINDOW_SIZE.x, WINDOW_SIZE.y, "Ender's Game");
-//     UpdateWindowSize(); // Initial size update
-//     #else
-//     InitWindow(WINDOW_SIZE.x, WINDOW_SIZE.y, "Asteroids");
-//     SetWindowPosition(100, 100);
-//     #endif
+GAME_EXPORT bool initGame(void) {
+    // Initialize window with web-specific settings
+    #ifdef __EMSCRIPTEN__
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    InitWindow(window_size.x, window_size.y, "Ender's Game");
+    UpdateWindowSize(); // Initial size update
+    #else
+    InitWindow(window_size.x, window_size.y, "Asteroids");
+    SetWindowPosition(100, 100);
+    #endif
     
-//     SetTargetFPS(60);
+    SetTargetFPS(60);
     
-//     // Initialize audio
-//     InitAudioDevice();
-//     if (!loadGameSounds()) {
-//         return false;
-//     }
-    
-//     // Initialize game state
-//     if (!initGameArrays(&state)) {
-//         return false;
-//     }
-    
-//     // Initialize basic state values
-//     state.change = 0;
-//     state.current = 0;
-//     state.stageStart = 0;
-//     state.lives = 3;
-//     state.lastScore = 0;
-//     state.score = 0;
-//     state.reset = false;
-//     state.lastBloop = 0;
-//     state.bloop = 0;
-//     state.frame = 0;
-
-//     // Initialize ship
-//     state.ship.position = (Vector2){WINDOW_SIZE.x / 2, WINDOW_SIZE.y / 2};
-//     state.ship.velocity = (Vector2){0, 0};
-//     state.ship.rotation = 0;
-//     state.ship.deathTime = 0;
-
-//     // Initialize random seed
-//     srand(time(NULL));
-
-//     // Initial game reset
-//     if (!resetGame()) {
-//         return false;
-//     }
-
-//     return true;
-// }
-
-#ifndef __EMSCRIPTEN__
-int main(void) {
-    if (!initGame()) {
-        return 1;
+    // Initialize audio
+    InitAudioDevice();
+    if (!loadGameSounds()) {
+        return false;
     }
     
-    while (!WindowShouldClose()) {
-        updateAndRenderFrame();
+    // Initialize game state
+    if (!initGameArrays(&state)) {
+        return false;
     }
     
-    cleanupGame();
-    return 0;
+    // Initialize basic state values
+    state.change = 0;
+    state.current = 0;
+    state.stageStart = 0;
+    state.lives = 3;
+    state.lastScore = 0;
+    state.score = 0;
+    state.reset = false;
+    state.lastBloop = 0;
+    state.bloop = 0;
+    state.frame = 0;
+
+    // Initialize ship
+    state.ship.position = (Vector2){window_size.x / 2, window_size.y / 2};
+    state.ship.velocity = (Vector2){0, 0};
+    state.ship.rotation = 0;
+    state.ship.deathTime = 0;
+
+    // Initialize random seed
+    srand(time(NULL));
+
+    // Initial game reset
+    if (!resetGame()) {
+        return false;
+    }
+
+    return true;
 }
-#endif
 
-void cleanupGame(void) {
+GAME_EXPORT void cleanupGame(void) {
     freeGameArrays(&state);
     unloadGameSounds();
     CloseAudioDevice();
@@ -1200,7 +1068,7 @@ static bool updateGame(void) {
 }
 
 //function for single frame update and render
-void updateAndRenderFrame(void) {
+GAME_EXPORT void updateAndRenderFrame(void) {
     // Update timing
     state.change = GetFrameTime();
     state.current += state.change;
@@ -1226,68 +1094,18 @@ void updateAndRenderFrame(void) {
     
     state.frame++;
 }
-// Main function
+
+#ifndef __EMSCRIPTEN__
 int main(void) {
-    // Initialize window
-    InitWindow(WINDOW_SIZE.x, WINDOW_SIZE.y, "Asteroids");
-    SetWindowPosition(100, 100);
-    SetTargetFPS(60);
-    
-    // Initialize audio
-    InitAudioDevice();
-    if (!loadGameSounds()) {
-        CloseAudioDevice();
-        CloseWindow();
-        return 1;
-    }
-    
-    // Initialize game state
     if (!initGame()) {
-        unloadGameSounds();
-        CloseAudioDevice();
-        CloseWindow();
         return 1;
     }
     
-    // Initial game reset
-    if (!resetGame()) {
-        freeGameArrays(&state);
-        unloadGameSounds();
-        CloseAudioDevice();
-        CloseWindow();
-        return 1;
-    }
-    
-    // Main game loop
     while (!WindowShouldClose()) {
-        // Update timing
-        state.change = GetFrameTime();
-        state.current += state.change;
-        
-        // Update game state
-        if (!updateGame()) {
-            break;
-        }
-        
-        // Handle reset if needed
-        if (state.reset) {
-            state.reset = false;
-            if (!resetGame()) {
-                break;
-            }
-        }
-        
-        // Render frame
-        renderGame();
-        
-        state.frame++;
+        updateAndRenderFrame();
     }
     
-    // Cleanup
-    freeGameArrays(&state);
-    unloadGameSounds();
-    CloseAudioDevice();
-    CloseWindow();
-    
+    cleanupGame();
     return 0;
 }
+#endif
