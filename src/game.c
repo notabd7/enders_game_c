@@ -557,7 +557,7 @@ static bool resetAsteroids(void) {
     clearAsteroids(&state);
     
     // Calculate number of asteroids based on score
-    size_t numAsteroids = 30 + (state.score / 1500);
+    size_t numAsteroids = 15 + (state.score / 2000);
     
     for (size_t i = 0; i < numAsteroids; i++) {
         float angle = (2.0f * PI) * ((float)rand() / RAND_MAX);
