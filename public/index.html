@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ender's Game</title>
+    <style>
+        @font-face {
+            font-family: 'Arcade';
+            src: url('https://fonts.cdnfonts.com/s/6643/ARCADECLASSIC.woff') format('woff');
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #000;
+            color: #0f0;
+            font-family: 'Arcade', sans-serif;
+            overflow: hidden;
+        }
+
+        h1 {
+            font-size: 4rem;
+            margin-top: 2rem;
+            text-shadow: 0 0 10px #0f0;
+        }
+
+        .spacebar {
+            font-size: 2rem;
+            margin-top: 2rem;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .key {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #222;
+            border: 2px solid #0f0;
+            border-radius: 8px;
+            padding: 0.5rem;
+            width: 80px;
+            height: 80px;
+            font-size: 0.8rem;
+        }
+
+        .key-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .spacebar-key {
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>ENDER'S GAME</h1>
+    <div class="spacebar">PRESS SPACEBAR TO START</div>
+    <div class="controls">
+        <div class="key">
+            <div class="key-icon">W</div>
+            <div>THRUST</div>
+        </div>
+        <div class="key">
+            <div class="key-icon">A</div>
+            <div>ROTATE LEFT</div>
+        </div>
+        <div class="key">
+            <div class="key-icon">D</div>
+            <div>ROTATE RIGHT</div>
+        </div>
+        <div class="key spacebar-key">
+            <div class="key-icon">SPACEBAR</div>
+            <div>SHOOT</div>
+        </div>
+        <div class="key">
+            <div class="key-icon">ESC</div>
+            <div>RETURN HOME</div>
+        </div>
+    </div>
+    <canvas id="game-canvas"></canvas>
+    <script>
+        let gameInstance = null;
+
+        document.getElementById('start-button').addEventListener('click', startGame);
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !gameInstance) {
+                startGame();
+            }
+            if (e.code === 'Escape' && gameInstance) {
+                returnToMenu();
+            }
+        });
+
+        function startGame() {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('game-canvas').style.display = 'block';
+            
+            // Load and start the game
+            if (!gameInstance) {
+                const script = document.createElement('script');
+                script.src = 'game.js';
+                document.body.appendChild(script);
+            }
+        }
+
+        function returnToMenu() {
+            document.getElementById('game-canvas').style.display = 'none';
+            document.getElementById('menu').style.display = 'block';
+        }
+    </script>
+</body>
+</body>
+</html>

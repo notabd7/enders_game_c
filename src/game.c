@@ -6,6 +6,11 @@
 #include <time.h>
 #include <string.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
+
 #define THICKNESS 1.5f
 #define SCALE 30.0f
 #define PI 3.14159265358979323846f
@@ -31,39 +36,6 @@ typedef enum {
     ALIEN_SMALL
 } AlienSize;
 
-// Functions to get alien properties based on size
-float getAlienCollisionSize(AlienSize size) {
-    switch (size) {
-        case ALIEN_BIG: return SCALE * 0.8f;
-        case ALIEN_SMALL: return SCALE * 0.5f;
-    }
-    return 0.0f;
-}
-
-float getAlienDirectionChangeTime(AlienSize size) {
-    switch (size) {
-        case ALIEN_BIG: return 0.85f;
-        case ALIEN_SMALL: return 0.35f;
-    }
-    return 0.0f;
-}
-
-float getAlienShotTime(AlienSize size) {
-    switch (size) {
-        case ALIEN_BIG: return 1.25f;
-        case ALIEN_SMALL: return 0.75f;
-    }
-    return 0.0f;
-}
-
-float getAlienSpeed(AlienSize size) {
-    switch (size) {
-        case ALIEN_BIG: return 3.0f;
-        case ALIEN_SMALL: return 6.0f;
-    }
-    return 0.0f;
-}
-
 // Asteroid size enumeration
 typedef enum {
     ASTEROID_BIG,
@@ -71,42 +43,6 @@ typedef enum {
     ASTEROID_SMALL
 } AsteroidSize;
 
-// Functions to get asteroid properties based on size
-int getAsteroidScore(AsteroidSize size) {
-    switch (size) {
-        case ASTEROID_BIG: return 20;
-        case ASTEROID_MEDIUM: return 50;
-        case ASTEROID_SMALL: return 100;
-    }
-    return 0;
-}
-
-float getAsteroidSize(AsteroidSize size) {
-    switch (size) {
-        case ASTEROID_BIG: return SCALE * 3.0f;
-        case ASTEROID_MEDIUM: return SCALE * 1.4f;
-        case ASTEROID_SMALL: return SCALE * 0.8f;
-    }
-    return 0.0f;
-}
-
-float getAsteroidCollisionScale(AsteroidSize size) {
-    switch (size) {
-        case ASTEROID_BIG: return 0.4f;
-        case ASTEROID_MEDIUM: return 0.65f;
-        case ASTEROID_SMALL: return 1.0f;
-    }
-    return 0.0f;
-}
-
-float getAsteroidVelocityScale(AsteroidSize size) {
-    switch (size) {
-        case ASTEROID_BIG: return 0.75f;
-        case ASTEROID_MEDIUM: return 0.9f;
-        case ASTEROID_SMALL: return 1.5f;
-    }
-    return 0.0f;
-}
 
 // Asteroid structure
 typedef struct {
@@ -200,6 +136,81 @@ typedef struct {
     size_t frame;
 } GameState;
 
+// Global variables
+static GameState state;
+static GameSound sound;
+static Vector2 WINDOW_SIZE = {800, 800};
+
+
+// Functions to get alien properties based on size
+float getAlienCollisionSize(AlienSize size) {
+    switch (size) {
+        case ALIEN_BIG: return SCALE * 0.8f;
+        case ALIEN_SMALL: return SCALE * 0.5f;
+    }
+    return 0.0f;
+}
+
+float getAlienDirectionChangeTime(AlienSize size) {
+    switch (size) {
+        case ALIEN_BIG: return 0.85f;
+        case ALIEN_SMALL: return 0.35f;
+    }
+    return 0.0f;
+}
+
+float getAlienShotTime(AlienSize size) {
+    switch (size) {
+        case ALIEN_BIG: return 1.25f;
+        case ALIEN_SMALL: return 0.75f;
+    }
+    return 0.0f;
+}
+
+float getAlienSpeed(AlienSize size) {
+    switch (size) {
+        case ALIEN_BIG: return 3.0f;
+        case ALIEN_SMALL: return 6.0f;
+    }
+    return 0.0f;
+}
+
+// Functions to get asteroid properties based on size
+int getAsteroidScore(AsteroidSize size) {
+    switch (size) {
+        case ASTEROID_BIG: return 20;
+        case ASTEROID_MEDIUM: return 50;
+        case ASTEROID_SMALL: return 100;
+    }
+    return 0;
+}
+
+float getAsteroidSize(AsteroidSize size) {
+    switch (size) {
+        case ASTEROID_BIG: return SCALE * 3.0f;
+        case ASTEROID_MEDIUM: return SCALE * 1.4f;
+        case ASTEROID_SMALL: return SCALE * 0.8f;
+    }
+    return 0.0f;
+}
+
+float getAsteroidCollisionScale(AsteroidSize size) {
+    switch (size) {
+        case ASTEROID_BIG: return 0.4f;
+        case ASTEROID_MEDIUM: return 0.65f;
+        case ASTEROID_SMALL: return 1.0f;
+    }
+    return 0.0f;
+}
+
+float getAsteroidVelocityScale(AsteroidSize size) {
+    switch (size) {
+        case ASTEROID_BIG: return 0.75f;
+        case ASTEROID_MEDIUM: return 0.9f;
+        case ASTEROID_SMALL: return 1.5f;
+    }
+    return 0.0f;
+}
 
 // Dynamic array management functions
 #define INITIAL_CAPACITY 16
@@ -302,6 +313,8 @@ static bool initGameArrays(GameState* state) {
     return true;
 }
 
+
+
 // Free game state arrays
 static void freeGameArrays(GameState* state) {
     free(state->asteroids);
@@ -367,7 +380,27 @@ static void clearAliens(GameState* state) {
     clearArray(state->aliens, &state->aliens_count);
 }
 
-
+void UpdateWindowSize(void) {
+    #ifdef __EMSCRIPTEN__
+    // Get the browser window size
+    int browserWidth = EM_ASM_INT({
+        return window.innerWidth;
+    });
+    int browserHeight = EM_ASM_INT({
+        return window.innerHeight;
+    });
+    
+    // Calculate new game size (maintain square aspect ratio)
+    int size = browserHeight < browserWidth ? browserHeight : browserWidth;
+    size = size > 1000 ? 1000 : size; // Cap maximum size
+    size = (size / 100) * 100; // Round to nearest hundred
+    
+    window_size.x = size;
+    window_size.y = size;
+    
+    SetWindowSize(size, size);
+    #endif
+}
 
 // Utility function to draw lines from points
 static void drawLines(Vector2 origin, float scale, float rotation, const Vector2* points, int pointCount, bool connect) {
@@ -560,58 +593,33 @@ static void drawProjectile(const Projectile* projectile) {
 // Main game initialization and loop
 #include <time.h>
 
-// Global variables
-static GameState state;
-static GameSound sound;
-static const Vector2 WINDOW_SIZE = {800, 800};
 
 
 
 
-// Initialize the game state
-static bool initGame(void) {
-    // Initialize arrays
-    if (!initGameArrays(&state)) {
-        return false;
-    }
-    
-    // Initialize basic state values
-    state.change = 0;
-    state.current = 0;
-    state.stageStart = 0;
-    state.lives = 3;
-    state.lastScore = 0;
-    state.score = 0;
-    state.reset = false;
-    state.lastBloop = 0;
-    state.bloop = 0;
-    state.frame = 0;
 
-    // Initialize ship
-    state.ship.position = (Vector2){WINDOW_SIZE.x / 2, WINDOW_SIZE.y / 2};
-    state.ship.velocity = (Vector2){0, 0};
-    state.ship.rotation = 0;
-    state.ship.deathTime = 0;
 
-    // Initialize random seed
-    srand(time(NULL));
-
-    
-
-    return true;
-}
-
-// Load game sounds
+// Modified sound loading for web
 static bool loadGameSounds(void) {
+    #ifdef __EMSCRIPTEN__
+    // Web audio needs to load from preloaded files
+    sound.bloopLo = LoadSound("sounds/bloop_lo.wav");
+    sound.bloopHi = LoadSound("sounds/bloop_hi.wav");
+    sound.shoot = LoadSound("sounds/shoot.wav");
+    sound.thrust = LoadSound("sounds/thrust.wav");
+    sound.asteroid = LoadSound("sounds/asteroid.wav");
+    sound.boom = LoadSound("sounds/explode.wav");
+    #else
+    // Original desktop sound loading
     sound.bloopLo = LoadSound("./sounds/bloop_lo.wav");
     sound.bloopHi = LoadSound("./sounds/bloop_hi.wav");
     sound.shoot = LoadSound("./sounds/shoot.wav");
     sound.thrust = LoadSound("./sounds/thrust.wav");
     sound.asteroid = LoadSound("./sounds/asteroid.wav");
     sound.boom = LoadSound("./sounds/explode.wav");
+    #endif
     return true;
 }
-
 // Unload game sounds
 static void unloadGameSounds(void) {
     UnloadSound(sound.bloopLo);
@@ -1071,6 +1079,82 @@ static void updateScore(GameState* state) {
     }
 }
 
+// bool initGame(void) {
+//     // Initialize window with web-specific settings
+//     #ifdef __EMSCRIPTEN__
+//     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+//     InitWindow(WINDOW_SIZE.x, WINDOW_SIZE.y, "Ender's Game");
+//     UpdateWindowSize(); // Initial size update
+//     #else
+//     InitWindow(WINDOW_SIZE.x, WINDOW_SIZE.y, "Asteroids");
+//     SetWindowPosition(100, 100);
+//     #endif
+    
+//     SetTargetFPS(60);
+    
+//     // Initialize audio
+//     InitAudioDevice();
+//     if (!loadGameSounds()) {
+//         return false;
+//     }
+    
+//     // Initialize game state
+//     if (!initGameArrays(&state)) {
+//         return false;
+//     }
+    
+//     // Initialize basic state values
+//     state.change = 0;
+//     state.current = 0;
+//     state.stageStart = 0;
+//     state.lives = 3;
+//     state.lastScore = 0;
+//     state.score = 0;
+//     state.reset = false;
+//     state.lastBloop = 0;
+//     state.bloop = 0;
+//     state.frame = 0;
+
+//     // Initialize ship
+//     state.ship.position = (Vector2){WINDOW_SIZE.x / 2, WINDOW_SIZE.y / 2};
+//     state.ship.velocity = (Vector2){0, 0};
+//     state.ship.rotation = 0;
+//     state.ship.deathTime = 0;
+
+//     // Initialize random seed
+//     srand(time(NULL));
+
+//     // Initial game reset
+//     if (!resetGame()) {
+//         return false;
+//     }
+
+//     return true;
+// }
+
+#ifndef __EMSCRIPTEN__
+int main(void) {
+    if (!initGame()) {
+        return 1;
+    }
+    
+    while (!WindowShouldClose()) {
+        updateAndRenderFrame();
+    }
+    
+    cleanupGame();
+    return 0;
+}
+#endif
+
+void cleanupGame(void) {
+    freeGameArrays(&state);
+    unloadGameSounds();
+    CloseAudioDevice();
+    CloseWindow();
+}
+
+
 
 // Main game loop update function (placeholder for now)
 static bool updateGame(void) {
@@ -1115,6 +1199,33 @@ static bool updateGame(void) {
     return true;
 }
 
+//function for single frame update and render
+void updateAndRenderFrame(void) {
+    // Update timing
+    state.change = GetFrameTime();
+    state.current += state.change;
+    
+    // Update window size (for responsive web)
+    UpdateWindowSize();
+    
+    // Update game state
+    if (!updateGame()) {
+        return;
+    }
+    
+    // Handle reset if needed
+    if (state.reset) {
+        state.reset = false;
+        if (!resetGame()) {
+            return;
+        }
+    }
+    
+    // Render frame
+    renderGame();
+    
+    state.frame++;
+}
 // Main function
 int main(void) {
     // Initialize window
